@@ -1,0 +1,108 @@
+---
+title: "Air Pollution"
+author: "Allan Reyes"
+date: "04/07/2015"
+output: html_document
+---
+
+```{r}
+directory <- 'specdata'
+```
+
+### formatFilename.R
+
+```{r}
+formatFilename <- function(id) {
+  # returns a text-friendly filename e.g. 019.csv
+  
+  if (id < 10) {
+    filename <- paste('00', id, '.csv', sep='')
+  } else if (id < 100) {
+    filename <- paste('0', id, '.csv', sep='')
+  } else {
+    filename <- paste(id, '.csv', sep='')
+  }
+  filename
+}
+
+# unit test
+stopifnot(formatFilename(5) == '005.csv')
+stopifnot(formatFilename(50) == '050.csv')
+stopifnot(formatFilename(500) == '500.csv')
+```
+
+### pollutantmean.R
+```{r}
+pollutantmean <- function(directory, pollutant, id = 1:332) {
+  # returns the mean of the pollutant across all monitors list in the 'id'
+  # vector, ignoring NA values.
+  
+  dataset <- numeric()
+  
+  for (fileId in id) {
+    filename <- formatFilename(fileId)
+    filepath <- paste(directory, '/', filename, sep='')
+    df <- read.csv(filepath)
+    dataset <- c(dataset, df[, pollutant])
+  }
+  
+  mean(dataset, na.rm=TRUE)
+}
+```
+
+Nitrate mean:
+```{r}
+pollutantmean(directory, 'nitrate')
+```
+
+Sulfate mean:
+```{r}
+pollutantmean(directory, 'sulfate')
+```
+
+### complete.R
+```{r}
+complete <- function(directory, id = 1:332) {
+  # returns a data frame w/ id and # observations
+  dfComplete <- data.frame(id = numeric(), nobs = numeric())
+  for (fileId in id) {
+    filename <- formatFilename(fileId)
+    filepath <- paste(directory, '/', filename, sep='')
+    df <- read.csv(filepath)
+    dfComplete <- rbind(dfComplete, data.frame(id = fileId, nobs = nrow(df[complete.cases(df), ])))
+  }
+  dfComplete
+}
+```
+
+Complete cases summary:
+```{r}
+summary(complete(directory))
+```
+
+### corr.R
+```{r}
+corr <- function(directory, threshold = 0) {
+  # returns a numeric vector of correlations
+  
+  observations <- complete(directory)
+  validIds <- observations$id[observations$nobs > threshold]
+  result <- numeric()
+  sulfate <- numeric()
+  nitrate <- numeric()
+  
+  for (id in validIds) {
+    filename <- formatFilename(id)
+    filepath <- paste(directory, '/', filename, sep='')
+    df <- read.csv(filepath)
+    result <- c(result, cor(df$sulfate, df$nitrate, use='complete.obs'))
+  }
+  
+  result
+}
+```
+
+Correlations:
+```{r}
+summary(corr(directory))
+```
